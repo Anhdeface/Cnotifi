@@ -1,0 +1,6 @@
+{
+  "name": "Custom Notifier",
+  "description": "An Android app to customize, schedule, and send consecutive notifications with custom delays, titles, and icons.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
