@@ -68,10 +68,45 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.receiver.NotificationReceiver
+import androidx.compose.animation.core.*
+import androidx.compose.ui.graphics.Brush
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
+
+@Composable
+fun getShimmerBrush(
+    baseColor: Color,
+    shineColor: Color
+): Brush {
+    val infiniteTransition = rememberInfiniteTransition(label = "shimmer")
+    val progress by infiniteTransition.animateFloat(
+        initialValue = -0.5f,
+        targetValue = 1.5f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1500, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "shimmer_progress"
+    )
+
+    return Brush.linearGradient(
+        colorStops = arrayOf(
+            0f to baseColor,
+            (progress - 0.25f).coerceIn(0f, 1f) to baseColor,
+            progress.coerceIn(0f, 1f) to shineColor,
+            (progress + 0.25f).coerceIn(0f, 1f) to baseColor,
+            1f to baseColor
+        ),
+        start = Offset(0f, 0f),
+        end = Offset(400f, 200f)
+    )
+}
+
+fun getLoc(vi: String, en: String): String {
+    return if (com.example.ui.theme.ThemeManager.currentLanguage == "vi") vi else en
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -101,9 +136,9 @@ fun HomeScreen(viewModel: NotificationViewModel) {
     ) { isGranted ->
         hasNotificationPermission = isGranted
         if (isGranted) {
-            Toast.makeText(context, "Đã cấp quyền thông báo thành công!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, getLoc("Đã cấp quyền thông báo thành công!", "Notification permission successfully granted!"), Toast.LENGTH_SHORT).show()
         } else {
-            Toast.makeText(context, "Ứng dụng cần quyền thông báo để hoạt động đúng cách.", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, getLoc("Ứng dụng cần quyền thông báo để hoạt động đúng cách.", "The app requires notification permissions to function correctly."), Toast.LENGTH_LONG).show()
         }
     }
 
@@ -114,43 +149,59 @@ fun HomeScreen(viewModel: NotificationViewModel) {
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        // Styled circle icon matching HTML spec header template: "w-10 h-10 rounded-full bg-[#6750A4] flex items-center justify-center text-white"
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .size(36.dp)
-                                .background(MaterialTheme.colorScheme.primary, CircleShape)
+    var showSplash by remember { mutableStateOf(true) }
+    val fullAppName = "Cnotifi"
+    var typedAppName by remember { mutableStateOf("") }
+    val roundedBoldFont = remember { FontFamily(android.graphics.Typeface.create("sans-serif-rounded", android.graphics.Typeface.BOLD)) }
+
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(150)
+        fullAppName.forEachIndexed { index, _ ->
+            typedAppName = fullAppName.substring(0, index + 1)
+            kotlinx.coroutines.delay(100L)
+        }
+        kotlinx.coroutines.delay(350L)
+        showSplash = false
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.NotificationsActive,
-                                contentDescription = "App Logo",
-                                tint = Color.White,
-                                modifier = Modifier.size(18.dp)
+                            // Styled circle icon matching HTML spec header template: "w-10 h-10 rounded-full bg-[#6750A4] flex items-center justify-center text-white"
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .background(MaterialTheme.colorScheme.primary, CircleShape)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.NotificationsActive,
+                                    contentDescription = "App Logo",
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Text(
+                                text = "Cnotifi",
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = roundedBoldFont,
+                                fontSize = 22.sp,
+                                letterSpacing = (-0.5).sp,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
-                        Text(
-                            text = "NotifyCustom",
-                            fontWeight = FontWeight.Medium,
-                            fontFamily = FontFamily.SansSerif,
-                            fontSize = 20.sp,
-                            letterSpacing = (-0.5).sp,
-                            color = Color(0xFF1C1B1F)
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                    )
                 )
-            )
-        },
+            },
         bottomBar = {
             NavigationBar(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
@@ -164,14 +215,14 @@ fun HomeScreen(viewModel: NotificationViewModel) {
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
                     icon = { Icon(Icons.Default.Add, contentDescription = "Tạo mới") },
-                    label = { Text("Tạo Mới") },
+                    label = { Text(getLoc("Tạo Mới", "Create")) },
                     modifier = Modifier.testTag("tab_create")
                 )
                 NavigationBarItem(
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1 },
                     icon = { Icon(Icons.Default.Palette, contentDescription = "Giao diện") },
-                    label = { Text("Giao Diện") },
+                    label = { Text(getLoc("Giao Diện", "Theme")) },
                     modifier = Modifier.testTag("tab_theme")
                 )
                 NavigationBarItem(
@@ -188,14 +239,14 @@ fun HomeScreen(viewModel: NotificationViewModel) {
                             Icon(Icons.Default.History, contentDescription = "Lịch sử")
                         }
                     },
-                    label = { Text("Lịch Sử") },
+                    label = { Text(getLoc("Lịch Sử", "History")) },
                     modifier = Modifier.testTag("tab_history")
                 )
                 NavigationBarItem(
                     selected = selectedTab == 3,
                     onClick = { selectedTab = 3 },
                     icon = { Icon(Icons.Default.Widgets, contentDescription = "Phím Tắt") },
-                    label = { Text("Phím Tắt") },
+                    label = { Text(getLoc("Phím Tắt", "Shortcuts")) },
                     modifier = Modifier.testTag("tab_shortcut")
                 )
             }
@@ -222,13 +273,13 @@ fun HomeScreen(viewModel: NotificationViewModel) {
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "Thiếu quyền gửi thông báo",
+                            text = getLoc("Thiếu quyền gửi thông báo", "Notification Permission Missing"),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )
                         Text(
-                            text = "Vui lòng cho phép ứng dụng gửi thông báo để bạn có thể nhận được lời nhắc đúng thời gian đã đặt.",
+                            text = getLoc("Vui lòng cho phép ứng dụng gửi thông báo để bạn có thể nhận được lời nhắc đúng thời gian đã đặt.", "Please allow the application to send notifications so you can receive your reminders on time."),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )
@@ -242,7 +293,7 @@ fun HomeScreen(viewModel: NotificationViewModel) {
                             shape = RoundedCornerShape(8.dp),
                             modifier = Modifier.align(Alignment.End)
                         ) {
-                            Text("Cấp quyền ngay")
+                            Text(getLoc("Cấp quyền ngay", "Grant Now"))
                         }
                     }
                 }
@@ -264,6 +315,88 @@ fun HomeScreen(viewModel: NotificationViewModel) {
             }
         }
     }
+
+    AnimatedVisibility(
+        visible = showSplash,
+        enter = fadeIn(),
+        exit = fadeOut(animationSpec = tween(300))
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.padding(24.dp)
+            ) {
+                // Logo Banner
+                Card(
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f)
+                    ),
+                    modifier = Modifier
+                        .padding(bottom = 24.dp)
+                        .size(110.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.NotificationsActive,
+                            contentDescription = "Cnotifi Logo",
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(56.dp)
+                        )
+                    }
+                }
+
+                // App Title
+                Text(
+                    text = typedAppName,
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontFamily = roundedBoldFont,
+                    letterSpacing = (-0.5).sp,
+                    modifier = Modifier.padding(bottom = 32.dp)
+                )
+
+                // Spacer to bridge center icon & bottom credentials
+                Spacer(modifier = Modifier.height(24.dp))
+
+                val shimmerBrushText = getShimmerBrush(
+                    baseColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    shineColor = MaterialTheme.colorScheme.primary
+                )
+
+                // Custom Shimmered Title Labels for Author & Project
+                Text(
+                    text = "Author : Xounzii",
+                    style = MaterialTheme.typography.titleMedium.copy(brush = shimmerBrushText),
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    letterSpacing = 0.5.sp,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+
+                Text(
+                    text = "github.com/Anhdeface/Cnotifi",
+                    style = MaterialTheme.typography.bodyMedium.copy(brush = shimmerBrushText),
+                    fontWeight = FontWeight.SemiBold,
+                    fontFamily = FontFamily.Monospace,
+                    letterSpacing = 0.2.sp,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+            }
+        }
+    }
+}
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -311,7 +444,12 @@ fun CreateTab(viewModel: NotificationViewModel) {
             "chat" to "Trò chuyện",
             "gift" to "Quà tặng",
             "coffee" to "Cốc nước",
-            "check" to "Hoàn thành"
+            "check" to "Hoàn thành",
+            "mail" to "Thư",
+            "music" to "Nhạc",
+            "home" to "Nhà",
+            "settings" to "Cài đặt",
+            "phone" to "Điện thoại"
         )
     }
 
@@ -365,15 +503,15 @@ fun CreateTab(viewModel: NotificationViewModel) {
         // Live status bar notification notification preview card!
         item {
             Text(
-                text = "Xem trước thông báo tiếp theo",
+                text = getLoc("Xem trước thông báo tiếp theo", "Preview Next Notification"),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(4.dp))
             NotificationMockupCard(
-                title = title.ifBlank { "Tiêu đề" },
-                content = messageItems.firstOrNull()?.text?.ifBlank { "Nhập nội dung thứ nhất..." } ?: "Nhập nội dung thứ nhất...",
+                title = title.ifBlank { getLoc("Tiêu đề", "Title") },
+                content = messageItems.firstOrNull()?.text?.ifBlank { getLoc("Nhập nội dung thứ nhất...", "Enter first message content...") } ?: getLoc("Nhập nội dung thứ nhất...", "Enter first message content..."),
                 iconName = selectedIcon,
                 colorHex = selectedColorHex
             )
@@ -394,7 +532,7 @@ fun CreateTab(viewModel: NotificationViewModel) {
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     Text(
-                        text = "DANH SÁCH CHUỖI TIN NHẮN",
+                        text = getLoc("DANH SÁCH CHUỖI TIN NHẮN", "MESSAGES CHAIN LIST"),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
@@ -404,18 +542,18 @@ fun CreateTab(viewModel: NotificationViewModel) {
                     OutlinedTextField(
                         value = title,
                         onValueChange = { title = it },
-                        label = { Text("Tiêu đề") },
+                        label = { Text(getLoc("Tiêu đề", "Title")) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("input_title"),
                         singleLine = true,
-                        placeholder = { Text("Nhập tiêu đề") }
+                        placeholder = { Text(getLoc("Nhập tiêu đề", "Enter title")) }
                     )
 
                     Divider(modifier = Modifier.padding(vertical = 4.dp))
 
                     Text(
-                        text = "Nội dung và giây chờ của từng tin nhắn:",
+                        text = getLoc("Nội dung và giây chờ của từng tin nhắn:", "Content and delay for each individual message:"),
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -440,7 +578,7 @@ fun CreateTab(viewModel: NotificationViewModel) {
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "Tin nhắn #${index + 1}",
+                                        text = getLoc("Tin nhắn #${index + 1}", "Message #${index + 1}"),
                                         style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.primary
@@ -455,7 +593,7 @@ fun CreateTab(viewModel: NotificationViewModel) {
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.Delete,
-                                                contentDescription = "Xóa tin nhắn",
+                                                contentDescription = getLoc("Xóa tin nhắn", "Delete message"),
                                                 tint = MaterialTheme.colorScheme.error,
                                                 modifier = Modifier.size(18.dp)
                                             )
@@ -470,17 +608,17 @@ fun CreateTab(viewModel: NotificationViewModel) {
                                             this[index] = this[index].copy(text = newText)
                                         }
                                     },
-                                    label = { Text("Nội dung tin nhắn") },
+                                    label = { Text(getLoc("Nội dung tin nhắn", "Message content")) },
                                     modifier = Modifier.fillMaxWidth().testTag("input_message_$index"),
                                     maxLines = 3,
                                     placeholder = {
-                                        Text("Nhập nội dung...")
+                                        Text(getLoc("Nhập nội dung...", "Enter content..."))
                                     }
                                 )
 
                                 Column {
                                     Text(
-                                        text = "Thời gian nghỉ sau tin này (Độ trễ):",
+                                        text = getLoc("Thời gian nghỉ sau tin này (Độ trễ):", "Delay after this message (Duration):"),
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.SemiBold,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -519,7 +657,7 @@ fun CreateTab(viewModel: NotificationViewModel) {
                                                     modifier = Modifier.padding(vertical = 8.dp)
                                                 ) {
                                                     Text(
-                                                        text = "$seconds giây ⏱️",
+                                                        text = getLoc("$seconds giây ⏱️", "$seconds seconds ⏱️"),
                                                         style = MaterialTheme.typography.labelMedium,
                                                         fontWeight = FontWeight.Bold
                                                     )
@@ -545,7 +683,7 @@ fun CreateTab(viewModel: NotificationViewModel) {
                     ) {
                         Icon(Icons.Default.Add, contentDescription = "Thêm mới")
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Thêm tin nhắn tiếp theo", fontWeight = FontWeight.SemiBold)
+                        Text(getLoc("Thêm tin nhắn tiếp theo", "Add Next Message"), fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -566,7 +704,7 @@ fun CreateTab(viewModel: NotificationViewModel) {
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     Text(
-                        text = "BIỂU TƯỢNG & MÀU SẮC",
+                        text = getLoc("BIỂU TƯỢNG & MÀU SẮC", "ICON & COLORS"),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
@@ -575,7 +713,7 @@ fun CreateTab(viewModel: NotificationViewModel) {
 
                     // Logo Select Row
                     Text(
-                        text = "Chọn Icon hiển thị",
+                        text = getLoc("Chọn Icon hiển thị", "Select Icon to display"),
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -624,7 +762,7 @@ fun CreateTab(viewModel: NotificationViewModel) {
 
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
-                        text = "Hoặc sử dụng ảnh riêng từ thiết bị 📷",
+                        text = getLoc("Hoặc sử dụng ảnh riêng từ thiết bị 📷", "Or use personal custom image 📷"),
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -686,13 +824,13 @@ fun CreateTab(viewModel: NotificationViewModel) {
 
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = if (isCustomIconSelected) "Đang dùng ảnh cá nhân" else "Chưa bật ảnh cá nhân",
+                                text = if (isCustomIconSelected) getLoc("Đang dùng ảnh cá nhân", "Using custom photo") else getLoc("Chưa bật ảnh cá nhân", "No custom photo active"),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = if (isCustomIconSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = if (lastCustomIconFileName != null) "Bấm ảnh tròn để chọn nhanh ảnh đã thiết lập" else "Hãy chọn ảnh từ máy để cắt và làm đại diện",
+                                text = if (lastCustomIconFileName != null) getLoc("Bấm ảnh tròn để chọn nhanh ảnh đã thiết lập", "Tap circular thumbnail to switch back to set photo") else getLoc("Hãy chọn ảnh từ máy để cắt và làm đại diện", "Select image from gallery to crop and set as avatar"),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                             )
@@ -705,7 +843,7 @@ fun CreateTab(viewModel: NotificationViewModel) {
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                             shape = RoundedCornerShape(12.dp)
                         ) {
-                            Text(if (lastCustomIconFileName != null) "Đổi ảnh" else "Chọn ảnh", style = MaterialTheme.typography.labelMedium)
+                            Text(if (lastCustomIconFileName != null) getLoc("Đổi ảnh", "Change Image") else getLoc("Chọn ảnh", "Pick Image"), style = MaterialTheme.typography.labelMedium)
                         }
                     }
 
@@ -714,7 +852,7 @@ fun CreateTab(viewModel: NotificationViewModel) {
 
                     // Color Select Row
                     Text(
-                        text = "Màu sắc đại diện (Accent color)",
+                        text = getLoc("Màu sắc đại diện (Accent color)", "Accent Color"),
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -761,9 +899,9 @@ fun CreateTab(viewModel: NotificationViewModel) {
         item {
             Button(
                 onClick = {
-                    val finalTitle = title.ifBlank { "Nhắc nhở chuỗi" }
+                    val finalTitle = title.ifBlank { getLoc("Nhắc nhở chuỗi", "Chain Reminder") }
                     if (messageItems.any { it.text.isBlank() }) {
-                        Toast.makeText(context, "Vui lòng nhập đầy đủ nội dung hoặc xóa bớt tin nhắn trống!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, getLoc("Vui lòng nhập đầy đủ nội dung hoặc xóa bớt tin nhắn trống!", "Please enter all contents or delete empty messages!"), Toast.LENGTH_SHORT).show()
                         return@Button
                     }
 
@@ -775,7 +913,7 @@ fun CreateTab(viewModel: NotificationViewModel) {
                     prefsEditor.putString("message_items", serializeMessageList(messageItems))
                     prefsEditor.apply()
 
-                    Toast.makeText(context, "Cấu hình thông báo đã lưu thành công! Hãy tạo phím tắt ở tab 'Phím Tắt'", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, getLoc("Cấu hình thông báo đã lưu thành công! Hãy tạo phím tắt ở tab 'Phím Tắt'", "Notification configuration saved successfully! Go create a home shortcut at the 'Shortcuts' tab."), Toast.LENGTH_LONG).show()
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -788,7 +926,7 @@ fun CreateTab(viewModel: NotificationViewModel) {
                 shape = RoundedCornerShape(100.dp)
             ) {
                 Text(
-                    text = "LƯU CẤU HÌNH TIN NHẮN",
+                    text = getLoc("LƯU CẤU HÌNH TIN NHẮN", "SAVE MESSAGES CONFIGURATION"),
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.SansSerif,
                     fontSize = 15.sp,
@@ -814,9 +952,9 @@ fun CreateTab(viewModel: NotificationViewModel) {
                         croppedBitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
                     }
                     selectedIcon = fileName
-                    Toast.makeText(context, "Đã áp dụng ảnh đại diện cá nhân cực đẹp!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, getLoc("Đã áp dụng ảnh đại diện cá nhân cực đẹp!", "Applied custom notification personal avatar!"), Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
-                    Toast.makeText(context, "Lỗi khi lưu ảnh cắt, vui lòng thử lại.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, getLoc("Lỗi khi lưu ảnh cắt, vui lòng thử lại.", "Error saving cropped image, please try again."), Toast.LENGTH_SHORT).show()
                 }
                 showCropDialog = false
                 selectedImageUri = null
@@ -840,17 +978,118 @@ fun ThemeSetupTab(viewModel: NotificationViewModel) {
         item {
             Column {
                 Text(
-                    text = "Cài đặt Giao diện & Chủ đề",
+                    text = getLoc("Cài đặt Giao diện & Chủ đề", "Appearance & Theme Settings"),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Tùy chỉnh giao diện, phông chữ và bố cục tiện ích để có trải nghiệm hiển thị phù hợp nhất.",
+                    text = getLoc("Tùy chỉnh giao diện, phông chữ và bố cục tiện ích để có trải nghiệm hiển thị phù hợp nhất.", "Customize the visual appearance, fonts, and widget layout for your style."),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+        }
+
+        // Section: Language Selection (Ngôn Ngữ)
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
+                ),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = getLoc("Ngôn ngữ", "Language"),
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = getLoc("Chọn ngôn ngữ hiển thị chính cho ứng dụng.", "Select the main appearance language for the application."),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        val isViSelected = com.example.ui.theme.ThemeManager.currentLanguage == "vi"
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(44.dp)
+                                .clickable {
+                                    com.example.ui.theme.ThemeManager.saveLanguage(context, "vi")
+                                },
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isViSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(1.dp, if (isViSelected) Color.Transparent else MaterialTheme.colorScheme.outlineVariant)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        text = "Tiếng Việt 🇻🇳",
+                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = if (isViSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                                    )
+                                    if (isViSelected) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = "Selected",
+                                            tint = MaterialTheme.colorScheme.onPrimary,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        val isEnSelected = com.example.ui.theme.ThemeManager.currentLanguage == "en"
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(44.dp)
+                                .clickable {
+                                    com.example.ui.theme.ThemeManager.saveLanguage(context, "en")
+                                },
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isEnSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(1.dp, if (isEnSelected) Color.Transparent else MaterialTheme.colorScheme.outlineVariant)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        text = "English 🇺🇸",
+                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = if (isEnSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                                    )
+                                    if (isEnSelected) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = "Selected",
+                                            tint = MaterialTheme.colorScheme.onPrimary,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -866,27 +1105,27 @@ fun ThemeSetupTab(viewModel: NotificationViewModel) {
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Chủ đề Màu Sắc",
+                        text = getLoc("Chủ đề Màu Sắc", "Color Themes"),
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Chọn các tông màu hiển thị phổ biến hoặc phong cách lập trình viên nổi tiếng.",
+                        text = getLoc("Chọn các tông màu hiển thị phổ biến hoặc phong cách lập trình viên nổi tiếng.", "Select popular UI color palettes or famous developer themes."),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
                     Spacer(modifier = Modifier.height(14.dp))
 
                     val themesList = listOf(
-                        "clean_minimal" to "Tối Giản Tinh Tế (Sáng)",
-                        "organic_emerald" to "Thảo Mộc Eco (Xanh Rêu)",
-                        "light_coding" to "Lập Trình Viên (Sáng)",
-                        "nebula_cosmic" to "Vũ Trụ Nebula (Tối)",
-                        "monokai_dev" to "Retro Monokai (Tối)",
-                        "tokyo_night" to "Tokyo Cyberpunk (Tối)",
-                        "midnight_black" to "Midnight Pure AMOLED (Đen)"
+                        "clean_minimal" to getLoc("Tối Giản Tinh Tế (Sáng)", "Minimalist Clean (Light)"),
+                        "organic_emerald" to getLoc("Thảo Mộc Eco (Xanh Rêu)", "Organic Herb (Sage Green)"),
+                        "light_coding" to getLoc("Lập Trình Viên (Sáng)", "Developer Light"),
+                        "nebula_cosmic" to getLoc("Vũ Trụ Nebula (Tối)", "Cosmic Nebula (Dark)"),
+                        "monokai_dev" to getLoc("Retro Monokai (Tối)", "Retro Monokai (Dark)"),
+                        "tokyo_night" to getLoc("Tokyo Cyberpunk (Tối)", "Tokyo Cyberpunk (Dark)"),
+                        "midnight_black" to getLoc("Midnight Pure AMOLED (Đen)", "Midnight Pure AMOLED (Black)")
                     )
 
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -946,7 +1185,7 @@ fun ThemeSetupTab(viewModel: NotificationViewModel) {
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Bố cục Danh sách",
+                        text = getLoc("Bố cục Danh sách", "List Layout"),
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -954,8 +1193,8 @@ fun ThemeSetupTab(viewModel: NotificationViewModel) {
                     Spacer(modifier = Modifier.height(14.dp))
 
                     val layoutsList = listOf(
-                        "card_grid" to "Thẻ Bo Tròn Lớn",
-                        "compact_row" to "Dòng Đơn Tối Giản"
+                        "card_grid" to getLoc("Thẻ Bo Tròn Lớn", "Rounded Large Cards"),
+                        "compact_row" to getLoc("Dòng Đơn Tối Giản", "Minimal Single Row")
                     )
 
                     Row(
@@ -1001,14 +1240,14 @@ fun ThemeSetupTab(viewModel: NotificationViewModel) {
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Cỡ Chữ & Phông Chữ",
+                        text = getLoc("Cỡ Chữ & Phông Chữ", "Font Size & Style"),
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Tự do phóng to, thu nhỏ cỡ chữ và chuyển đổi phong cách phông chữ của riêng bạn.",
+                        text = getLoc("Tự do phóng to, thu nhỏ cỡ chữ và chuyển đổi phong cách phông chữ của riêng bạn.", "Freely scale text size and select custom typography styles."),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
@@ -1016,7 +1255,7 @@ fun ThemeSetupTab(viewModel: NotificationViewModel) {
 
                     // Font Size option title
                     Text(
-                        text = "Cỡ Chữ Ứng Dụng:",
+                        text = getLoc("Cỡ Chữ Ứng Dụng:", "App Font Size:"),
                         fontWeight = FontWeight.SemiBold,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1024,9 +1263,9 @@ fun ThemeSetupTab(viewModel: NotificationViewModel) {
                     Spacer(modifier = Modifier.height(6.dp))
 
                     val sizesList = listOf(
-                        "small" to "Nhỏ (0.85x)",
-                        "normal" to "Vừa (Mặc định)",
-                        "large" to "Lớn (1.15x)"
+                        "small" to getLoc("Nhỏ (0.85x)", "Small (0.85x)"),
+                        "normal" to getLoc("Vừa (Mặc định)", "Normal (Default)"),
+                        "large" to getLoc("Lớn (1.15x)", "Large (1.15x)")
                     )
 
                     Row(
@@ -1066,7 +1305,7 @@ fun ThemeSetupTab(viewModel: NotificationViewModel) {
 
                     // Font Family option title
                     Text(
-                        text = "Kiểu Phông Chữ:",
+                        text = getLoc("Kiểu Phông Chữ:", "Font Style:"),
                         fontWeight = FontWeight.SemiBold,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1074,9 +1313,9 @@ fun ThemeSetupTab(viewModel: NotificationViewModel) {
                     Spacer(modifier = Modifier.height(6.dp))
 
                     val familiesList = listOf(
-                        "system" to "Hệ thống",
-                        "monospace" to "Lập trình (Mono)",
-                        "serif" to "Cổ điển (Serif)"
+                        "system" to getLoc("Hệ thống", "System Default"),
+                        "monospace" to getLoc("Lập trình (Mono)", "Monospace (Mono)"),
+                        "serif" to getLoc("Cổ điển (Serif)", "Classic (Serif)")
                     )
 
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1150,13 +1389,13 @@ fun HistoryTab(
                     modifier = Modifier.size(72.dp)
                 )
                 Text(
-                    text = "Lịch sử & Hàng chờ trống",
+                    text = getLoc("Lịch sử & Hàng chờ trống", "History & Queue Empty"),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = "Chưa có thông báo nào được đặt lịch hoặc gửi đi. Hãy cấu hình một thông báo mới ở tab \"Tạo Mới\" ngay nhé!",
+                    text = getLoc("Chưa có thông báo nào được đặt lịch hoặc gửi đi. Hãy cấu hình một thông báo mới ở tab \"Tạo Mới\" ngay nhé!", "No scheduled or sent notifications found. Create a new notification chain at the \"Create\" tab!"),
                     maxLines = 3,
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.bodyMedium,
@@ -1188,7 +1427,7 @@ fun HistoryTab(
             if (schedules.isNotEmpty()) {
                 item {
                     Text(
-                        text = "Thông Báo Đang Chờ Gửi (${schedules.size})",
+                        text = getLoc("Thông Báo Đang Chờ Gửi (${schedules.size})", "Pending Notifications (${schedules.size})"),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
@@ -1228,7 +1467,7 @@ fun HistoryTab(
                                         )
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Text(
-                                            text = "Chuỗi gửi liên tiếp (${groupSchedules.size} tin)",
+                                            text = getLoc("Chuỗi gửi liên tiếp (${groupSchedules.size} tin)", "Consecutive sending chain (${groupSchedules.size} msgs)"),
                                             fontWeight = FontWeight.Bold,
                                             style = MaterialTheme.typography.labelMedium,
                                             color = MaterialTheme.colorScheme.primary
@@ -1242,7 +1481,7 @@ fun HistoryTab(
                                     ) {
                                         Icon(Icons.Default.Cancel, contentDescription = "Hủy", modifier = Modifier.size(16.dp))
                                         Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Hủy chuỗi", style = MaterialTheme.typography.labelSmall)
+                                        Text(getLoc("Hủy chuỗi", "Cancel Chain"), style = MaterialTheme.typography.labelSmall)
                                     }
                                 }
                                 Divider(
@@ -1299,7 +1538,7 @@ fun HistoryTab(
                                                 overflow = TextOverflow.Ellipsis
                                             )
                                             Text(
-                                                text = "Hẹn gửi: ${shortDateFormat.format(Date(item.triggerTimeMs))}",
+                                                text = "${getLoc("Hẹn gửi: ", "Scheduled: ")}${shortDateFormat.format(Date(item.triggerTimeMs))}",
                                                 style = MaterialTheme.typography.labelSmall,
                                                 fontWeight = FontWeight.SemiBold,
                                                 color = MaterialTheme.colorScheme.primary,
@@ -1345,7 +1584,7 @@ fun HistoryTab(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Lịch Sử Đã Gửi (${history.size})",
+                            text = getLoc("Lịch Sử Đã Gửi (${history.size})", "Sent History (${history.size})"),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1357,7 +1596,7 @@ fun HistoryTab(
                         ) {
                             Icon(Icons.Default.Delete, contentDescription = "Clear History Logo", modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Xóa hết", fontWeight = FontWeight.Bold)
+                            Text(getLoc("Xóa hết", "Clear All"), fontWeight = FontWeight.Bold)
                         }
                     }
                     Spacer(modifier = Modifier.height(4.dp))
@@ -1415,7 +1654,7 @@ fun HistoryTab(
                                         modifier = Modifier.size(10.dp)
                                     )
                                     Text(
-                                        text = "Đã gửi",
+                                        text = getLoc("Đã gửi", "Sent"),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.primary,
                                         fontWeight = FontWeight.Bold
@@ -1487,7 +1726,7 @@ fun HistoryTab(
                                                 modifier = Modifier.size(12.dp)
                                             )
                                             Text(
-                                                text = "Đã gửi",
+                                                text = getLoc("Đã gửi", "Sent"),
                                                 fontWeight = FontWeight.ExtraBold,
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = MaterialTheme.colorScheme.primary
@@ -1504,7 +1743,7 @@ fun HistoryTab(
                                     )
 
                                     Text(
-                                        text = "Gửi vào lúc: ${longDateFormat.format(Date(item.triggerTimeMs))}",
+                                        text = "${getLoc("Gửi vào lúc: ", "Sent at: ")}${longDateFormat.format(Date(item.triggerTimeMs))}",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                         modifier = Modifier.padding(top = 2.dp)
@@ -1992,7 +2231,12 @@ fun ShortcutTab(viewModel: NotificationViewModel) {
             "chat" to "Trò chuyện",
             "gift" to "Quà tặng",
             "coffee" to "Cốc nước",
-            "check" to "Hoàn thành"
+            "check" to "Hoàn thành",
+            "mail" to "Thư",
+            "music" to "Nhạc",
+            "home" to "Nhà",
+            "settings" to "Cài đặt",
+            "phone" to "Điện thoại"
         )
     }
 
@@ -2059,13 +2303,13 @@ fun ShortcutTab(viewModel: NotificationViewModel) {
                     )
                     Column {
                         Text(
-                            text = "Trình dựng Phím tắt",
+                            text = getLoc("Trình dựng Phím tắt", "Shortcut Builder"),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
                         )
                         Text(
-                            text = "Tùy chỉnh biểu tượng & tên hiển thị theo phong cách cá nhân và gán ra màn hình chính làm phím tắt siêu tốc!",
+                            text = getLoc("Tùy chỉnh biểu tượng & tên hiển thị theo phong cách cá nhân và gán ra màn hình chính làm phím tắt siêu tốc!", "Customize shortcut name & icon style to represent your custom workspace, then pin to your launcher for high-speed chain notifications!"),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -2081,7 +2325,7 @@ fun ShortcutTab(viewModel: NotificationViewModel) {
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "ẢNH XEM TRƯỚC LỐI TẮT MÀN HÌNH CHÍNH",
+                    text = getLoc("ẢNH XEM TRƯỚC LỐI TẮT MÀN HÌNH CHÍNH", "LAUNCHER SHORTCUT PREVIEW"),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
@@ -2137,7 +2381,7 @@ fun ShortcutTab(viewModel: NotificationViewModel) {
                         Spacer(modifier = Modifier.height(8.dp))
 
                         Text(
-                            text = shortcutName.ifBlank { "Gửi tin nhanh" },
+                            text = shortcutName.ifBlank { getLoc("Gửi tin nhanh", "Send Fast") },
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
@@ -2162,7 +2406,7 @@ fun ShortcutTab(viewModel: NotificationViewModel) {
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = "1. TÊN PHÍM TẮT DI ĐỘNG",
+                        text = getLoc("TÊN PHÍM TẮT MÀN HÌNH CHÍNH", "LAUNCHER SHORTCUT NAME"),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -2172,7 +2416,7 @@ fun ShortcutTab(viewModel: NotificationViewModel) {
                         value = shortcutName,
                         onValueChange = { shortcutName = it },
                         modifier = Modifier.fillMaxWidth().testTag("shortcut_name_input"),
-                        placeholder = { Text("Tên lối tắt") },
+                        placeholder = { Text(getLoc("Tên lối tắt", "Shortcut Name")) },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp)
                     )
@@ -2192,56 +2436,65 @@ fun ShortcutTab(viewModel: NotificationViewModel) {
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Text(
-                        text = "2. THIẾT KẾ BIỂU TƯỢNG (ICON)",
+                        text = getLoc("THIẾT KẾ BIỂU TƯỢNG PHÍM TẮT", "LAUNCHER SHORTCUT ICON DESIGN"),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
 
                     Text(
-                        text = "Chọn biểu tượng phong cách:",
+                        text = getLoc("Kiểu hiển thị biểu tượng", "Icon visual style"),
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    LazyRow(
+                    FlowRow(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(vertical = 4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        items(availableIcons, key = { it.first }) { (iconId, label) ->
+                        availableIcons.forEach { (iconId, label) ->
                             val isSelected = selectedIcon == iconId
                             Box(
+                                contentAlignment = Alignment.Center,
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                                    .border(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
+                                    .size(44.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                                    )
+                                    .border(
+                                        width = if (isSelected) 2.dp else 1.dp,
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                                        shape = CircleShape
+                                    )
                                     .clickable { selectedIcon = iconId }
-                                    .padding(horizontal = 14.dp, vertical = 8.dp)
                             ) {
-                                Text(
-                                    text = label,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                Icon(
+                                    painter = painterResource(id = NotificationReceiver.getIconResId(iconId)),
+                                    contentDescription = label,
+                                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
                         }
                     }
 
                     Text(
-                        text = "Chọn màu sắc nền tròn phong thủy:",
+                        text = getLoc("Màu sắc nền thương hiệu", "Brand background color"),
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    LazyRow(
+                    FlowRow(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        contentPadding = PaddingValues(vertical = 4.dp)
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        items(colors, key = { it.first }) { (hex, color) ->
+                        colors.forEach { (hex, color) ->
                             val isSelected = selectedColorHex == hex
                             Box(
                                 modifier = Modifier
@@ -2250,7 +2503,7 @@ fun ShortcutTab(viewModel: NotificationViewModel) {
                                     .border(
                                         BorderStroke(
                                             if (isSelected) 3.dp else 1.dp,
-                                            if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
+                                            if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                                         ),
                                         CircleShape
                                     )
@@ -2262,7 +2515,7 @@ fun ShortcutTab(viewModel: NotificationViewModel) {
                     Divider(modifier = Modifier.padding(vertical = 4.dp))
 
                     Text(
-                        text = "Hoặc chọn ảnh cá nhân từ máy của bạn:",
+                        text = getLoc("Hoặc sử dụng ảnh tải lên từ thiết bị", "Or use image uploaded from device"),
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -2324,13 +2577,13 @@ fun ShortcutTab(viewModel: NotificationViewModel) {
 
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = if (isCustomIconSelected) "Đang dùng ảnh cá nhân" else "Chưa bật ảnh cá nhân",
+                                text = if (isCustomIconSelected) getLoc("Đang dùng ảnh cá nhân", "Using custom photo") else getLoc("Chưa bật ảnh cá nhân", "No custom photo active"),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = if (isCustomIconSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = if (lastCustomIconFileName != null) "Bấm màu tròn để chọn nhanh ảnh đã cắt" else "Tự upload ảnh có sẵn lấy một vùng tròn",
+                                text = if (lastCustomIconFileName != null) getLoc("Bấm màu tròn để chọn nhanh ảnh đã cắt", "Tap circular thumbnail to switch back to set photo") else getLoc("Tự upload ảnh có sẵn lấy một vùng tròn", "Upload photo from gallery to crop and apply"),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                             )
@@ -2341,7 +2594,7 @@ fun ShortcutTab(viewModel: NotificationViewModel) {
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                             shape = RoundedCornerShape(12.dp)
                         ) {
-                            Text(if (lastCustomIconFileName != null) "Đổi ảnh" else "Chọn ảnh", style = MaterialTheme.typography.labelMedium)
+                            Text(if (lastCustomIconFileName != null) getLoc("Đổi ảnh", "Change Image") else getLoc("Chọn ảnh", "Pick Image"), style = MaterialTheme.typography.labelMedium)
                         }
                     }
                 }
@@ -2360,7 +2613,7 @@ fun ShortcutTab(viewModel: NotificationViewModel) {
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Text(
-                        text = "3. CẤU HÌNH GIAO DIỆN CHẠY PHÍM TẮT",
+                        text = getLoc("CẤU HÌNH PHƯƠNG THỨC KÍCH HOẠT", "TRIGGER BEHAVIOR CONFIGURATION"),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -2373,14 +2626,14 @@ fun ShortcutTab(viewModel: NotificationViewModel) {
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Hiển thị giao diện Tiến trình",
+                                text = getLoc("Hiển thị thanh tiến trình khi chạy", "Show trigger progress overlay"),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "Khi tắt, phím tắt sẽ tự chạy ngầm siêu nhanh từ màn hình chính cực đỉnh mà không hiện bất kì hộp thoại quấy rầy nào!",
+                                text = getLoc("Thực thi tác vụ và thông báo chạy ngầm ngay lập tức, đem lại trải nghiệm mượt mà, tối giản.", "Allows starting tasks in the background with visual progress feedback overlay on screen."),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                             )
@@ -2418,7 +2671,7 @@ fun ShortcutTab(viewModel: NotificationViewModel) {
 
                     if (ShortcutManagerCompat.isRequestPinShortcutSupported(context)) {
                         val pinShortcutInfo = ShortcutInfoCompat.Builder(context, "shortcut_pin")
-                            .setShortLabel(shortcutName.ifBlank { "Gửi tin nhanh" })
+                            .setShortLabel(shortcutName.ifBlank { getLoc("Gửi tin nhanh", "Send Fast") })
                             .setIcon(IconCompat.createWithBitmap(renderIcon))
                             .setIntent(Intent(context, ShortcutActivity::class.java).apply {
                                 action = Intent.ACTION_VIEW
@@ -2428,12 +2681,12 @@ fun ShortcutTab(viewModel: NotificationViewModel) {
 
                         val pinSuccess = ShortcutManagerCompat.requestPinShortcut(context, pinShortcutInfo, null)
                         if (pinSuccess) {
-                            Toast.makeText(context, "Đã khởi tạo phím tắt mới! Hãy xác nhận thêm phím tắt ngoài màn hình chính của thiết bị.", Toast.LENGTH_LONG).show()
+                            Toast.makeText(context, getLoc("Đã khởi tạo phím tắt mới! Hãy xác nhận thêm phím tắt ngoài màn hình chính của thiết bị.", "Created new shortcut! Please confirm adding the shortcut onto your device's home screen."), Toast.LENGTH_LONG).show()
                         } else {
-                            Toast.makeText(context, "Lỗi yêu cầu thêm phím tắt, vui lòng thử lại.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, getLoc("Lỗi yêu cầu thêm phím tắt, vui lòng thử lại.", "Error requesting shortcut addition, please try again."), Toast.LENGTH_SHORT).show()
                         }
                     } else {
-                        Toast.makeText(context, "Thiết bị không hỗ trợ ghim phím tắt động!", Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, getLoc("Thiết bị không hỗ trợ ghim phím tắt động!", "Device does not support pinning dynamic shortcuts!"), Toast.LENGTH_LONG).show()
                     }
                 },
                 modifier = Modifier
@@ -2448,7 +2701,7 @@ fun ShortcutTab(viewModel: NotificationViewModel) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(Icons.Default.Build, contentDescription = "Build icon")
-                    Text("TẠO PHÍM TẮT MỚI", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text(getLoc("TẠO PHÍM TẮT MỚI", "CREATE NEW SHORTCUT"), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
             }
         }
@@ -2464,22 +2717,27 @@ fun ShortcutTab(viewModel: NotificationViewModel) {
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = "Hướng dẫn quan trọng khi build",
+                        text = getLoc("Hướng dẫn quan trọng khi build", "Important compilation guide"),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = "• Mặc định khi tải ứng dụng sẽ không có phím tắt sẵn ngoài màn hình chính.\n" +
-                                "• Mỗi lần bạn 'Build phím tắt mới' thành công, phím tắt cũ trước đó (nếu có trên màn hình chính) sẽ lập tức hết hạn, hiển thị cảnh báo yêu cầu gỡ bỏ và không thể sử dụng để tránh nhầm lẫn.\n" +
-                                "• Trên một số dòng máy Android, bạn cần cấp thêm quyền 'Lối tắt màn hình chính' trong Cài đặt ứng dụng để có thể gán phím tắt tự động.",
+                        text = getLoc(
+                            "• Mặc định khi tải ứng dụng sẽ không có phím tắt sẵn ngoài màn hình chính.\n" +
+                                    "• Mỗi lần bạn 'Build phím tắt mới' thành công, phím tắt cũ trước đó (nếu có trên màn hình chính) sẽ lập tức hết hạn, hiển thị cảnh báo yêu cầu gỡ bỏ và không thể sử dụng để tránh nhầm lẫn.\n" +
+                                    "• Trên một số dòng máy Android, bạn cần cấp thêm quyền 'Lối tắt màn hình chính' trong Cài đặt ứng dụng để có thể gán phím tắt tự động.",
+                            "• By default, there is no shortcut pinned on your home screen.\n" +
+                                    "• Every time you click 'Create New Shortcut', any previous shortcut on your home screen will immediately expire, display an expiration warning, and cannot be used to prevent confusion.\n" +
+                                    "• On some Android devices, you must grant the 'Home screen shortcut' permission in App settings to allow automatic shortcut pinning."
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                         lineHeight = 18.sp
                     )
                     if (activeVersion > 0) {
                         Text(
-                            text = "Mã phiên bản hoạt động hiện tại: VS-$activeVersion",
+                            text = "${getLoc("Mã phiên bản hoạt động hiện tại: ", "Current active version: ")}VS-$activeVersion",
                             style = MaterialTheme.typography.labelSmall,
                             fontFamily = FontFamily.Monospace,
                             color = MaterialTheme.colorScheme.primary,
@@ -2506,9 +2764,9 @@ fun ShortcutTab(viewModel: NotificationViewModel) {
                         croppedBitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
                     }
                     selectedIcon = fileName
-                    Toast.makeText(context, "Đã áp dụng ảnh đại diện cá nhân cực đẹp!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, getLoc("Đã áp dụng ảnh đại diện cá nhân cực đẹp!", "Applied custom notification personal avatar!"), Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
-                    Toast.makeText(context, "Lỗi khi lưu ảnh cắt, vui lòng thử lại.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, getLoc("Lỗi khi lưu ảnh cắt, vui lòng thử lại.", "Error saving cropped image, please try again."), Toast.LENGTH_SHORT).show()
                 }
                 showCropDialog = false
                 selectedImageUri = null

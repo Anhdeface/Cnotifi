@@ -37,6 +37,10 @@ import kotlinx.coroutines.launch
 
 class ShortcutActivity : ComponentActivity() {
 
+    private fun getLoc(vi: String, en: String): String {
+        return if (com.example.ui.theme.ThemeManager.currentLanguage == "vi") vi else en
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         com.example.ui.theme.ThemeManager.init(applicationContext)
@@ -71,7 +75,7 @@ class ShortcutActivity : ComponentActivity() {
                                 verticalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
                                 Text(
-                                    text = "🚨 PHÍM TẮT HẾT HẠN",
+                                    text = getLoc("🚨 PHÍM TẮT HẾT HẠN", "🚨 EXPIRED SHORTCUT"),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onErrorContainer,
@@ -79,7 +83,10 @@ class ShortcutActivity : ComponentActivity() {
                                 )
 
                                 Text(
-                                    text = "Phím tắt này đã hết hạn vì bạn đã tạo một phím tắt (shortcut) mới!\n\nVui lòng gỡ bỏ/xóa phím tắt cũ này trên màn hình chính của thiết bị.",
+                                    text = getLoc(
+                                        "Phím tắt này đã hết hạn vì bạn đã tạo một phím tắt (shortcut) mới!\n\nVui lòng gỡ bỏ/xóa phím tắt cũ này trên màn hình chính của thiết bị.",
+                                        "This shortcut has expired because you've compiled a newer one!\n\nPlease delete/remove this older shortcut from your device's home screen."
+                                    ),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onErrorContainer,
                                     textAlign = TextAlign.Center
@@ -90,7 +97,7 @@ class ShortcutActivity : ComponentActivity() {
                                         try {
                                             ShortcutManagerCompat.disableShortcuts(applicationContext, listOf("shortcut_pin"), "Lối tắt đã hết hạn")
                                             ShortcutManagerCompat.removeDynamicShortcuts(applicationContext, listOf("shortcut_pin"))
-                                            Toast.makeText(applicationContext, "🧹 Đã xóa cấu hình & vô hiệu hóa phím tắt hết hạn thành công!", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(applicationContext, getLoc("🧹 Đã xóa cấu hình & vô hiệu hóa phím tắt hết hạn thành công!", "🧹 Successfully cleared config & disabled expired shortcut!"), Toast.LENGTH_SHORT).show()
                                         } catch (e: Exception) {
                                             e.printStackTrace()
                                         }
@@ -101,7 +108,7 @@ class ShortcutActivity : ComponentActivity() {
                                     ),
                                     shape = RoundedCornerShape(100.dp)
                                 ) {
-                                    Text("Xóa Phím Tắt 🗑️", color = Color.White, fontWeight = FontWeight.Bold)
+                                    Text(getLoc("Xóa Phím Tắt 🗑️", "Delete Shortcut 🗑️"), color = Color.White, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -121,7 +128,7 @@ class ShortcutActivity : ComponentActivity() {
         val messagesList = deserializeMessageList(messagesSerialized)
 
         if (messagesList.isEmpty()) {
-            Toast.makeText(this, "⚠️ Vui lòng mở ứng dụng chính để cài đặt tin nhắn trước!", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getLoc("⚠️ Vui lòng mở ứng dụng chính để cài đặt tin nhắn trước!", "⚠️ Please open the main app to configure messages first!"), Toast.LENGTH_LONG).show()
             finish()
             return
         }

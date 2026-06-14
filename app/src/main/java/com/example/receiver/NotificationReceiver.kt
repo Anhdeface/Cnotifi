@@ -103,6 +103,11 @@ class NotificationReceiver : BroadcastReceiver() {
                 "gift" -> R.drawable.ic_notify_gift
                 "coffee" -> R.drawable.ic_notify_coffee
                 "check" -> R.drawable.ic_notify_check
+                "mail" -> R.drawable.ic_notify_mail
+                "music" -> R.drawable.ic_notify_music
+                "home" -> R.drawable.ic_notify_home
+                "settings" -> R.drawable.ic_notify_settings
+                "phone" -> R.drawable.ic_notify_phone
                 else -> R.drawable.ic_notify_bell
             }
         }

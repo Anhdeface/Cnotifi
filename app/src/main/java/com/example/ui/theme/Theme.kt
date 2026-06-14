@@ -23,6 +23,7 @@ object ThemeManager {
     var currentLayout by mutableStateOf("card_grid")
     var currentFontSize by mutableStateOf("normal")
     var currentFontFamily by mutableStateOf("app_font")
+    var currentLanguage by mutableStateOf("vi")
 
     fun init(context: Context) {
         val prefs = context.getSharedPreferences("theme_prefs", Context.MODE_PRIVATE)
@@ -30,6 +31,7 @@ object ThemeManager {
         currentLayout = prefs.getString("layout", "card_grid") ?: "card_grid"
         currentFontSize = prefs.getString("font_size", "normal") ?: "normal"
         currentFontFamily = prefs.getString("font_family", "app_font") ?: "app_font"
+        currentLanguage = prefs.getString("language", "vi") ?: "vi"
     }
 
     fun saveTheme(context: Context, theme: String) {
@@ -61,6 +63,14 @@ object ThemeManager {
         context.getSharedPreferences("theme_prefs", Context.MODE_PRIVATE)
             .edit()
             .putString("font_family", family)
+            .apply()
+    }
+
+    fun saveLanguage(context: Context, lang: String) {
+        currentLanguage = lang
+        context.getSharedPreferences("theme_prefs", Context.MODE_PRIVATE)
+            .edit()
+            .putString("language", lang)
             .apply()
     }
 }
