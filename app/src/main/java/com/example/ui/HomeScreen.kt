@@ -9,6 +9,7 @@ import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import coil.compose.AsyncImage
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Paint
@@ -74,6 +75,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlinx.coroutines.launch
 
 @Composable
 fun getShimmerBrush(
@@ -401,6 +403,91 @@ fun HomeScreen(viewModel: NotificationViewModel) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
+fun UploadedPhotoSelector(
+    selectedIcon: String,
+    onIconSelected: (String) -> Unit
+) {
+    val context = LocalContext.current
+    var uploadedFiles by remember { mutableStateOf<List<File>>(emptyList()) }
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            val list = context.filesDir.listFiles { _, name -> name.startsWith("custom_icon_") }
+            uploadedFiles = list?.sortedByDescending { it.lastModified() } ?: emptyList()
+        }
+    }
+
+    if (uploadedFiles.isNotEmpty()) {
+        Text(
+            text = getLoc("Hoặc chọn ảnh tùy chỉnh đã tải lên:", "Or pick uploaded custom photo:"),
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            items(uploadedFiles) { file ->
+                val isSelected = selectedIcon == file.name
+                val borderMod = if (isSelected) {
+                    Modifier.border(2.5.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                } else Modifier
+                                
+                Box(
+                    modifier = Modifier
+                        .size(50.dp)
+                        .then(borderMod)
+                        .clickable { onIconSelected(file.name) }
+                ) {
+                    AsyncImage(
+                        model = file,
+                        contentDescription = "Uploaded preview",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                    if (isSelected) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .size(16.dp)
+                                .background(MaterialTheme.colorScheme.surface, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = "Selected",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(10.dp))
+    } else {
+        Card(
+           modifier = Modifier.fillMaxWidth(),
+           colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+           shape = RoundedCornerShape(12.dp)
+        ) {
+            Text(
+                getLoc("Chưa có ảnh tải lên. Vui lòng vào Quản Lý Ảnh (tab Giao Diện) để tải ảnh.", "No uploaded photos. Please go to Theme Settings to upload."), 
+                modifier = Modifier.padding(12.dp),
+                style = MaterialTheme.typography.labelSmall, 
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
+        Spacer(modifier = Modifier.height(10.dp))
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
 fun CreateTab(viewModel: NotificationViewModel) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("shortcut_prefs", Context.MODE_PRIVATE) }
@@ -480,18 +567,6 @@ fun CreateTab(viewModel: NotificationViewModel) {
 
     var selectedIcon by remember { mutableStateOf(prefs.getString("icon_name", "bell") ?: "bell") }
     var selectedColorHex by remember { mutableStateOf(prefs.getString("icon_color", "#FB8C00") ?: "#FB8C00") }
-
-    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
-    var showCropDialog by remember { mutableStateOf(false) }
-
-    val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri ->
-        if (uri != null) {
-            selectedImageUri = uri
-            showCropDialog = true
-        }
-    }
 
     LazyColumn(
         modifier = Modifier
@@ -761,94 +836,10 @@ fun CreateTab(viewModel: NotificationViewModel) {
                     }
 
                     Spacer(modifier = Modifier.height(10.dp))
-                    Text(
-                        text = getLoc("Hoặc sử dụng ảnh riêng từ thiết bị 📷", "Or use personal custom image 📷"),
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    val isCustomIconSelected = selectedIcon.startsWith("custom_icon_")
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
-                            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        val lastCustomIconFileName = remember(selectedIcon) {
-                            val list = context.filesDir.listFiles { _, name -> name.startsWith("custom_icon_") }
-                            list?.maxByOrNull { it.lastModified() }?.name
-                        }
-
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .size(56.dp)
-                                .background(MaterialTheme.colorScheme.surface, CircleShape)
-                                .border(
-                                    BorderStroke(
-                                        2.dp,
-                                        if (isCustomIconSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
-                                    ),
-                                    CircleShape
-                                )
-                                .clip(CircleShape)
-                                .clickable {
-                                    if (lastCustomIconFileName != null) {
-                                        selectedIcon = lastCustomIconFileName
-                                    } else {
-                                        galleryLauncher.launch("image/*")
-                                    }
-                                }
-                        ) {
-                            if (lastCustomIconFileName != null) {
-                                val b = BitmapFactory.decodeFile(File(context.filesDir, lastCustomIconFileName).absolutePath)
-                                if (b != null) {
-                                    androidx.compose.foundation.Image(
-                                        bitmap = b.asImageBitmap(),
-                                        contentDescription = "Custom preview",
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentScale = ContentScale.Crop
-                                    )
-                                } else {
-                                    Icon(Icons.Default.Photo, contentDescription = "Pick image", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                            } else {
-                                Icon(Icons.Default.AddPhotoAlternate, contentDescription = "Pick image", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = if (isCustomIconSelected) getLoc("Đang dùng ảnh cá nhân", "Using custom photo") else getLoc("Chưa bật ảnh cá nhân", "No custom photo active"),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isCustomIconSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = if (lastCustomIconFileName != null) getLoc("Bấm ảnh tròn để chọn nhanh ảnh đã thiết lập", "Tap circular thumbnail to switch back to set photo") else getLoc("Hãy chọn ảnh từ máy để cắt và làm đại diện", "Select image from gallery to crop and set as avatar"),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                            )
-                        }
-
-                        Button(
-                            onClick = {
-                                galleryLauncher.launch("image/*")
-                            },
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text(if (lastCustomIconFileName != null) getLoc("Đổi ảnh", "Change Image") else getLoc("Chọn ảnh", "Pick Image"), style = MaterialTheme.typography.labelMedium)
-                        }
-                    }
+                    UploadedPhotoSelector(selectedIcon = selectedIcon, onIconSelected = { selectedIcon = it })
 
                     Spacer(modifier = Modifier.height(2.dp))
-                    Divider(modifier = Modifier.padding(vertical = 4.dp))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
                     // Color Select Row
                     Text(
@@ -935,34 +926,9 @@ fun CreateTab(viewModel: NotificationViewModel) {
             }
         }
     }
-
-    if (showCropDialog && selectedImageUri != null) {
-        CropDialog(
-            imageUri = selectedImageUri!!,
-            onDismiss = {
-                showCropDialog = false
-                selectedImageUri = null
-            },
-            onCropSuccess = { croppedBitmap ->
-                try {
-                    // Save the cropped circular bitmap as PNG
-                    val fileName = "custom_icon_${System.currentTimeMillis()}.png"
-                    val file = File(context.filesDir, fileName)
-                    FileOutputStream(file).use { out ->
-                        croppedBitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
-                    }
-                    selectedIcon = fileName
-                    Toast.makeText(context, getLoc("Đã áp dụng ảnh đại diện cá nhân cực đẹp!", "Applied custom notification personal avatar!"), Toast.LENGTH_SHORT).show()
-                } catch (e: Exception) {
-                    Toast.makeText(context, getLoc("Lỗi khi lưu ảnh cắt, vui lòng thử lại.", "Error saving cropped image, please try again."), Toast.LENGTH_SHORT).show()
-                }
-                showCropDialog = false
-                selectedImageUri = null
-            }
-        )
-    }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ThemeSetupTab(viewModel: NotificationViewModel) {
     val context = LocalContext.current
@@ -1355,6 +1321,145 @@ fun ThemeSetupTab(viewModel: NotificationViewModel) {
                                 }
                             }
                         }
+                    }
+                }
+            }
+        }
+
+        // Section 4: Quản lý Ảnh Tùy Chỉnh (Custom Images Manager)
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
+                ),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = getLoc("Quản Lý Ảnh Của Bạn", "Manage Uploaded Photos"),
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = getLoc("Tải ảnh từ thiết bị lên để có thể chọn làm ảnh đại diện cho thông báo.", "Upload images from your gallery so you can set them as notification avatars."),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+                    var showCropDialog by remember { mutableStateOf(false) }
+                    var refreshTrigger by remember { mutableStateOf(0) }
+                    
+                    val galleryLauncher = rememberLauncherForActivityResult(
+                        contract = ActivityResultContracts.GetContent()
+                    ) { uri: Uri? ->
+                        if (uri != null) {
+                            selectedImageUri = uri
+                            showCropDialog = true
+                        }
+                    }
+
+                    // Tải ảnh lên
+                    Button(
+                        onClick = { galleryLauncher.launch("image/*") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Upload, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(getLoc("Tải Ảnh Từ Thư Viện", "Upload Photo From Gallery"))
+                    }
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    // Show existing uploaded photos
+                    var uploadedFiles by remember { mutableStateOf<List<File>>(emptyList()) }
+                    
+                    LaunchedEffect(refreshTrigger) {
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            val list = context.filesDir.listFiles { _, name -> name.startsWith("custom_icon_") }
+                            uploadedFiles = list?.sortedByDescending { it.lastModified() } ?: emptyList()
+                        }
+                    }
+                    
+                    if (uploadedFiles.isNotEmpty()) {
+                        Text(
+                            text = getLoc("Ảnh đã tải lên:", "Uploaded photos:"),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            uploadedFiles.forEach { file ->
+                                Box(
+                                    modifier = Modifier.size(64.dp)
+                                ) {
+                                    AsyncImage(
+                                        model = file,
+                                        contentDescription = "Uploaded preview",
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clip(CircleShape)
+                                            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                    // Delete button overlay
+                                    IconButton(
+                                        onClick = {
+                                            file.delete()
+                                            refreshTrigger++
+                                        },
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .size(24.dp)
+                                            .background(Color.Red.copy(alpha = 0.8f), CircleShape)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Close,
+                                            contentDescription = "Delete",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (showCropDialog && selectedImageUri != null) {
+                        CropDialog(
+                            imageUri = selectedImageUri!!,
+                            onDismiss = {
+                                showCropDialog = false
+                                selectedImageUri = null
+                            },
+                            onCropSuccess = { croppedBitmap ->
+                                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                                    try {
+                                        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+                                        val fileName = "custom_icon_$timeStamp.png"
+                                        val file = File(context.filesDir, fileName)
+                                        FileOutputStream(file).use { out ->
+                                            croppedBitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                                        }
+                                    } catch (e: Exception) {
+                                        e.printStackTrace()
+                                    } finally {
+                                        showCropDialog = false
+                                        selectedImageUri = null
+                                        refreshTrigger++
+                                    }
+                                }
+                            }
+                        )
                     }
                 }
             }
@@ -1810,22 +1915,12 @@ fun NotificationMockupCard(
                             .clip(CircleShape)
                     ) {
                         if (customIconFile != null && customIconFile.exists()) {
-                            val b = BitmapFactory.decodeFile(customIconFile.absolutePath)
-                            if (b != null) {
-                                androidx.compose.foundation.Image(
-                                    bitmap = b.asImageBitmap(),
-                                    contentDescription = "Custom preview status badge",
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop
-                                )
-                            } else {
-                                Icon(
-                                    painter = painterResource(id = NotificationReceiver.getIconResId(iconName)),
-                                    contentDescription = "System mockup icon",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(13.dp)
-                                )
-                            }
+                            AsyncImage(
+                                model = customIconFile,
+                                contentDescription = "Custom preview status badge",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
                         } else {
                             Icon(
                                 painter = painterResource(id = NotificationReceiver.getIconResId(iconName)),
@@ -1880,22 +1975,12 @@ fun NotificationMockupCard(
                         .clip(CircleShape)
                 ) {
                     if (customIconFile != null && customIconFile.exists()) {
-                        val b = BitmapFactory.decodeFile(customIconFile.absolutePath)
-                        if (b != null) {
-                            androidx.compose.foundation.Image(
-                                bitmap = b.asImageBitmap(),
-                                contentDescription = "Custom mockup large icon",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Icon(
-                                painter = painterResource(id = NotificationReceiver.getIconResId(iconName)),
-                                contentDescription = "mockup logo represent",
-                                tint = accentColor,
-                                modifier = Modifier.size(26.dp)
-                            )
-                        }
+                        AsyncImage(
+                            model = customIconFile,
+                            contentDescription = "Custom mockup large icon",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
                     } else {
                         Icon(
                             painter = painterResource(id = NotificationReceiver.getIconResId(iconName)),
@@ -1940,31 +2025,34 @@ fun CropDialog(
     val context = LocalContext.current
     
     // Load bitmap with proper size restrictions to prevent out of memory issues
-    val sourceBitmap = remember(imageUri) {
-        try {
-            val contentResolver = context.contentResolver
-            val options = BitmapFactory.Options().apply {
-                inJustDecodeBounds = true
+    var sourceBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    LaunchedEffect(imageUri) {
+        sourceBitmap = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val contentResolver = context.contentResolver
+                val options = BitmapFactory.Options().apply {
+                    inJustDecodeBounds = true
+                }
+                contentResolver.openInputStream(imageUri)?.use { inputStream ->
+                    BitmapFactory.decodeStream(inputStream, null, options)
+                }
+                
+                val maxDimension = 1500
+                var sampleSize = 1
+                while (options.outWidth / sampleSize > maxDimension || options.outHeight / sampleSize > maxDimension) {
+                    sampleSize *= 2
+                }
+                
+                val finalOptions = BitmapFactory.Options().apply {
+                    inSampleSize = sampleSize
+                    inMutable = true
+                }
+                contentResolver.openInputStream(imageUri)?.use { inputStream ->
+                    BitmapFactory.decodeStream(inputStream, null, finalOptions)
+                }
+            } catch (e: Exception) {
+                null
             }
-            contentResolver.openInputStream(imageUri)?.use { inputStream ->
-                BitmapFactory.decodeStream(inputStream, null, options)
-            }
-            
-            val maxDimension = 1500
-            var sampleSize = 1
-            while (options.outWidth / sampleSize > maxDimension || options.outHeight / sampleSize > maxDimension) {
-                sampleSize *= 2
-            }
-            
-            val finalOptions = BitmapFactory.Options().apply {
-                inSampleSize = sampleSize
-                inMutable = true
-            }
-            contentResolver.openInputStream(imageUri)?.use { inputStream ->
-                BitmapFactory.decodeStream(inputStream, null, finalOptions)
-            }
-        } catch (e: Exception) {
-            null
         }
     }
 
@@ -2032,19 +2120,22 @@ fun CropDialog(
                             .fillMaxSize()
                             .clipToBounds()
                     ) {
-                        Image(
-                            bitmap = sourceBitmap.asImageBitmap(),
-                            contentDescription = "Original image",
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .graphicsLayer(
-                                    scaleX = scale,
-                                    scaleY = scale,
-                                    translationX = offsetX,
-                                    translationY = offsetY
-                                )
-                        )
+                        val localBitmap = sourceBitmap
+                        if (localBitmap != null) {
+                            Image(
+                                bitmap = localBitmap.asImageBitmap(),
+                                contentDescription = "Original image",
+                                contentScale = ContentScale.Fit,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .graphicsLayer(
+                                        scaleX = scale,
+                                        scaleY = scale,
+                                        translationX = offsetX,
+                                        translationY = offsetY
+                                    )
+                            )
+                        }
                     }
 
                     // Mask Layer overlays a clean circular visual cutout
@@ -2125,8 +2216,9 @@ fun CropDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val srcW = sourceBitmap.width
-                    val srcH = sourceBitmap.height
+                    val localBitmap = sourceBitmap ?: return@Button
+                    val srcW = localBitmap.width
+                    val srcH = localBitmap.height
                     
                     val viewportDp = 240
                     val contextDensity = context.resources.displayMetrics.density
@@ -2147,7 +2239,7 @@ fun CropDialog(
                     matrix.postTranslate(outSize / 2f + offsetX * ratio, outSize / 2f + offsetY * ratio)
 
                     canvas.drawBitmap(
-                        sourceBitmap,
+                        localBitmap,
                         matrix,
                         Paint(Paint.FILTER_BITMAP_FLAG).apply { isAntiAlias = true }
                     )
@@ -2265,18 +2357,6 @@ fun ShortcutTab(viewModel: NotificationViewModel) {
         )
     }
 
-    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
-    var showCropDialog by remember { mutableStateOf(false) }
-
-    val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri ->
-        if (uri != null) {
-            selectedImageUri = uri
-            showCropDialog = true
-        }
-    }
-
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -2354,17 +2434,12 @@ fun ShortcutTab(viewModel: NotificationViewModel) {
                             if (selectedIcon.startsWith("custom_icon_")) {
                                 val customIconFile = File(context.filesDir, selectedIcon)
                                 if (customIconFile.exists()) {
-                                    val b = BitmapFactory.decodeFile(customIconFile.absolutePath)
-                                    if (b != null) {
-                                        Image(
-                                            bitmap = b.asImageBitmap(),
-                                            contentDescription = "Custom icon preview",
-                                            modifier = Modifier.fillMaxSize(),
-                                            contentScale = ContentScale.Crop
-                                        )
-                                    } else {
-                                        Icon(Icons.Default.Photo, contentDescription = "Custom", tint = Color.White)
-                                    }
+                                    AsyncImage(
+                                        model = customIconFile,
+                                        contentDescription = "Custom icon preview",
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
                                 } else {
                                     Icon(Icons.Default.Photo, contentDescription = "Custom", tint = Color.White)
                                 }
@@ -2512,91 +2587,9 @@ fun ShortcutTab(viewModel: NotificationViewModel) {
                         }
                     }
 
-                    Divider(modifier = Modifier.padding(vertical = 4.dp))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
-                    Text(
-                        text = getLoc("Hoặc sử dụng ảnh tải lên từ thiết bị", "Or use image uploaded from device"),
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    val isCustomIconSelected = selectedIcon.startsWith("custom_icon_")
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
-                            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        val lastCustomIconFileName = remember(selectedIcon) {
-                            val list = context.filesDir.listFiles { _, name -> name.startsWith("custom_icon_") }
-                            list?.maxByOrNull { it.lastModified() }?.name
-                        }
-
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .size(56.dp)
-                                .background(MaterialTheme.colorScheme.surface, CircleShape)
-                                .border(
-                                    BorderStroke(
-                                        2.dp,
-                                        if (isCustomIconSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
-                                    ),
-                                    CircleShape
-                                )
-                                .clip(CircleShape)
-                                .clickable {
-                                    if (lastCustomIconFileName != null) {
-                                        selectedIcon = lastCustomIconFileName
-                                    } else {
-                                        galleryLauncher.launch("image/*")
-                                    }
-                                }
-                        ) {
-                            if (lastCustomIconFileName != null) {
-                                val b = BitmapFactory.decodeFile(File(context.filesDir, lastCustomIconFileName).absolutePath)
-                                if (b != null) {
-                                    Image(
-                                        bitmap = b.asImageBitmap(),
-                                        contentDescription = "Custom preview",
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentScale = ContentScale.Crop
-                                    )
-                                } else {
-                                    Icon(Icons.Default.Photo, contentDescription = "Pick image", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                            } else {
-                                Icon(Icons.Default.AddPhotoAlternate, contentDescription = "Pick image", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = if (isCustomIconSelected) getLoc("Đang dùng ảnh cá nhân", "Using custom photo") else getLoc("Chưa bật ảnh cá nhân", "No custom photo active"),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isCustomIconSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = if (lastCustomIconFileName != null) getLoc("Bấm màu tròn để chọn nhanh ảnh đã cắt", "Tap circular thumbnail to switch back to set photo") else getLoc("Tự upload ảnh có sẵn lấy một vùng tròn", "Upload photo from gallery to crop and apply"),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                            )
-                        }
-
-                        Button(
-                            onClick = { galleryLauncher.launch("image/*") },
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text(if (lastCustomIconFileName != null) getLoc("Đổi ảnh", "Change Image") else getLoc("Chọn ảnh", "Pick Image"), style = MaterialTheme.typography.labelMedium)
-                        }
-                    }
+                    UploadedPhotoSelector(selectedIcon = selectedIcon, onIconSelected = { selectedIcon = it })
                 }
             }
         }
@@ -2747,31 +2740,6 @@ fun ShortcutTab(viewModel: NotificationViewModel) {
                 }
             }
         }
-    }
-
-    if (showCropDialog && selectedImageUri != null) {
-        CropDialog(
-            imageUri = selectedImageUri!!,
-            onDismiss = {
-                showCropDialog = false
-                selectedImageUri = null
-            },
-            onCropSuccess = { croppedBitmap ->
-                try {
-                    val fileName = "custom_icon_${System.currentTimeMillis()}.png"
-                    val file = File(context.filesDir, fileName)
-                    FileOutputStream(file).use { out ->
-                        croppedBitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
-                    }
-                    selectedIcon = fileName
-                    Toast.makeText(context, getLoc("Đã áp dụng ảnh đại diện cá nhân cực đẹp!", "Applied custom notification personal avatar!"), Toast.LENGTH_SHORT).show()
-                } catch (e: Exception) {
-                    Toast.makeText(context, getLoc("Lỗi khi lưu ảnh cắt, vui lòng thử lại.", "Error saving cropped image, please try again."), Toast.LENGTH_SHORT).show()
-                }
-                showCropDialog = false
-                selectedImageUri = null
-            }
-        )
     }
 }
 
