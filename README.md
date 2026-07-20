@@ -1,51 +1,44 @@
-# Cnotifi: Advanced Android Notification Engine
+# Cnotifi: Công Cụ Thông Báo Android Tiên Tiến
 
-Cnotifi is a highly customizable Android application designed to construct, orchestrate, and dispatch local notifications with precise granular control. Utilizing modern Android capabilities, the application offers an extensive toolset for developers and power users to generate tailored notification payloads, persist custom graphic assets, and trigger programmable shortcuts directly from the launcher.
+**Cnotifi** là ứng dụng Android mạnh mẽ cho phép bạn **tạo, quản lý và gửi thông báo local** với độ tùy chỉnh cực cao. Dành cho developer, tester và power user muốn kiểm soát hoàn toàn hành vi thông báo trên thiết bị.
 
-## Architectural Overview
+## Tính năng nổi bật
 
-The application is built vertically utilizing modern declarative UI paradigms and reactive state management:
+- **Xây dựng thông báo linh hoạt**: Tùy chỉnh title, content, icon (hàng loạt icon SVG đẹp mắt), large icon từ ảnh thiết bị.
+- **Quản lý asset**: Lưu trữ và xử lý hình ảnh (PNG) trực tiếp trong app.
+- **Dynamic Shortcuts**: Tạo shortcut trên màn hình chính để trigger thông báo nhanh chóng.
+- **Notification Sequence**: Hỗ trợ gửi chuỗi thông báo theo lịch hoặc trigger.
+- **Jetpack Compose UI**: Giao diện hiện đại, mượt mà với Material Design 3.
+- **Room Database + Repository pattern**: Quản lý dữ liệu thông báo chuyên nghiệp.
 
-- Language Context: Kotlin strictly enforced for type safety and inter-operations.
-- Declarative User Interface: Jetpack Compose with Material Design 3 guidelines for fluid and responsive component rendering.
-- Asynchronous Operations: Kotlin Coroutines and StateFlow for non-blocking UI state transformations and concurrent execution pipelines.
-- Persistent Storage: Shared Preferences for localized primitive state configurations, bypassing heavy SQLite overhead for simple configurations.
-- Media Handling: Coil graphic pipeline integrated for memory-efficient multi-threaded image decoding, resizing, and caching.
+## Công nghệ sử dụng
 
-## Core Technical Features
+- **Ngôn ngữ**: Kotlin 100%
+- **UI**: Jetpack Compose + Material 3
+- **Kiến trúc**: MVVM với ViewModel, StateFlow, Coroutines
+- **Database**: Room + DAO
+- **Dependency Injection & Build**: Gradle KTS + Version Catalog
+- **Hình ảnh**: Coil cho loading & caching
 
-### 1. Payload Creation Engine
-Cnotifi allows dynamic assembly of notification properties:
-- Mutable text allocations for titles and message payload bodies.
-- Programmable small icons using predefined scalable vector graphics.
-- Support for bitmap decoding to allow customized avatars and assets parsed directly from device storage arrays for integration into the NotificationCompat builder.
+## Hướng dẫn cài đặt & Build
 
-### 2. Asset Storage and Processing Pipeline
-The application features a built-in content resolver and image modification pipeline:
-- Asynchronous File I/O for direct application-bound storage interactions.
-- User-supplied images are intercepted via ActivityResultContracts, dynamically partitioned using Matrix-based affine transformations, and stored as lossless Portable Network Graphics (PNG) inside the isolated application context.
-- Active cleanup cycle management via application user interface for orphaned asset removal to tightly preserve internal memory allocations.
+1. Clone repo:
+   ```bash
+   git clone https://github.com/Anhdeface/Cnotifi.git
+   ```
+2. Mở project trong Android Studio.
+3. Sync Gradle.
+4. Chạy trên emulator hoặc thiết bị thật (API 24+).
 
-### 3. Dynamic Launcher Shortcuts
-Cnotifi leverages the Android ShortcutManager API for deep integration:
-- Constructing Pinned Shortcuts corresponding to saved parameters.
-- Foreground intents fired sequentially for seamless background notification deployment without requiring full activity initialization.
-- Dynamic Bitmap icons synthesized through the Android Graphics framework to serialize configurations onto the native Android launcher surface.
+## Screenshots & Demo
+(Thêm ảnh demo ở đây sau)
 
-## Build Requirements
+## Mục đích
+Công cụ hoàn hảo để test notification behavior, xây dựng automation, hoặc tạo trải nghiệm thông báo độc đáo trên Android.
 
-- Minimum Software Development Kit (SDK) Target: API Level 24 minimum.
-- Target SDK: Aligned with the latest stable Android iterations to ensure compliance with modern runtime permission mandates regarding notification channels.
+---
 
-## Compilation Instructions
+**Tác giả**: Anhdeface (xounzii)  
+**License**: MIT (hoặc tùy chỉnh theo nhu cầu)
 
-The project strictly uses Gradle build systems structured under Kotlin Domain Specific Language (KTS). Transitive dependency resolutions are synchronized logically through the version catalog.
-To compile the system:
-1. Ensure the presence of the required Android SDK environments.
-2. Synchronize gradle configurations.
-3. Establish a connection to an active emulator or physical ADB target.
-4. Execute the gradle assemble wrapper task.
-
-## Author Information
-
-Author: xounzii
+Nếu bạn thấy hữu ích, hãy **star** repo và contribute ý tưởng! 🚀
